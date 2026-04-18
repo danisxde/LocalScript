@@ -415,7 +415,7 @@ agent3/
 ├── docker-compose.yml
 │
 ├── agents/
-│   ├── contracts.py           # ← НОВЫЙ: контракты всех агентов
+│   ├── contracts.py           # контракты всех агентов
 │   ├── base.py                # LLMClient (Ollama /api/chat), BaseAgent
 │   ├── clarifier.py           # уточняющие вопросы, JSON-ответ
 │   ├── planner.py             # декомпозиция задачи
