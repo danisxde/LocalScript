@@ -1,0 +1,41 @@
+model:
+  host: "127.0.0.1"
+  port: 11434
+
+  name: "qwen2.5-coder:7b-instruct-q4_K_M"
+  num_ctx: 4096     
+  num_predict: 256   
+  num_batch: 1   
+  num_parallel: 1    
+  num_gpu: -1   
+  temperature: 0.2
+  top_p: 0.9
+  repeat_penalty: 1.1
+
+agent:
+  max_retries: 3      
+  clarification_turns: 2 
+  verbose: true
+
+rag:
+  enabled: true
+  db_path: "./rag/chroma_db"
+  top_k: 3
+  similarity_threshold: 0.6
+
+validator:
+  syntax_check: true      
+  sandbox_enabled: true   
+  sandbox_timeout: 5     
+  llm_self_review: true   
+
+output:
+  format: "rich"
+  show_plan: true
+  show_validation_details: true
+
+rag:
+  enabled: true          
+  db_path: "./rag/chroma_db"    
+  top_k: 3                       
+  auto_save: false                

@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  lua-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lua-agent:latest
+    container_name: lua_agent
+    stdin_open: true
+    tty: true
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # работает на Linux + macOS + Windows
+    volumes:
+      - ./rag/snippets:/app/rag/snippets      # персистентные сниппеты
+      - ./config.yaml:/app/config.yaml        # можно редактировать снаружи
+    command: python3 main.py
+    restart: unless-stopped
