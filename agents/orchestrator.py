@@ -138,7 +138,10 @@ class Orchestrator:
         )
         clarifier_in.validate()
         clarifier_result = self.clarifier.analyze(
-            clarifier_in.task, context=clarifier_in.context
+            clarifier_in.task,
+            context=clarifier_in.context,
+            prior_code=clarifier_in.prior_code,
+            refinement_mode=clarifier_in.refinement_mode,
         )
 
         if not clarifier_result.ready:
@@ -302,6 +305,7 @@ class Orchestrator:
                     context_snippets=gen_in.context_snippets,
                     iteration=attempt,
                     previous_error=last_error,
+                    prior_code=gen_in.prior_code,
                 )
                 state.generated_code = gen_result.code
                 self._add_to_history("assistant",

@@ -87,33 +87,31 @@ class ValidatorAgent(BaseAgent):
         """Оборачивает код в минимальное LowCode-окружение для sandbox-теста."""
         indented = textwrap.indent(code, "    ")
 
-        return f"""\
-        -- ================================================
-        -- LowCode Lua sandbox mock (для валидатора)
-        -- wf.vars / wf.initVariables / _utils.array
-        -- ================================================
+        return """\
+-- ================================================
+-- LowCode Lua sandbox mock (для валидатора)
+-- wf.vars / wf.initVariables / _utils.array
+-- ================================================
 
-        local wf = {{
-            vars = {{}},           -- здесь можно в будущем подставлять тестовые данные
-            initVariables = {{}}
-        }}
+local wf = {
+    vars = {},
+    initVariables = {}
+}
 
-        local _utils = {{
-            array = {{
-                new = function()
-                    return {{}}        -- обычная таблица, # работает
-                end,
-                markAsArray = function(arr)
-                    -- платформа просто помечает массив, в тесте не нужно
-                    return arr
-                end
-            }}
-        }}
+local _utils = {
+    array = {
+        new = function()
+            return {}
+        end,
+        markAsArray = function(arr)
+            return arr
+        end
+    }
+}
 
-        -- ================================================
-        -- Сгенерированный пользователем код (обязательно заканчивается return)
-        {indented}
-        """
+-- ================================================
+-- Сгенерированный пользователем код
+""" + indented + "\n"
     
     def _run_sandbox(self, code: str) -> tuple[bool, Optional[str]]:
         with tempfile.NamedTemporaryFile(suffix=".lua", mode="w", delete=False, encoding="utf-8") as f:
