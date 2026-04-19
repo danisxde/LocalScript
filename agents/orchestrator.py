@@ -216,6 +216,10 @@ class Orchestrator:
                         start_time: float) -> SessionState:
         """Пайплайн уточнения — генерация на основе предыдущего кода."""
         last_error = None
+        # Составной summary для валидатора: оригинал + что изменить
+        refinement_summary = (
+            f"{state.task_summary or state.original_task} | Refinement: {refinement_request}"
+        )
 
         for attempt in range(1, self.max_retries + 1):
             state.iteration = attempt
@@ -227,7 +231,8 @@ class Orchestrator:
                     context_snippets=state.context_snippets,
                     iteration=attempt,
                     previous_error=last_error,
-                    prior_code=state.final_code,
+                    # При retry используем последний сгенерированный код, не финальный
+                    prior_code=state.generated_code if last_error else state.final_code,
                     refinement_request=refinement_request,
                 )
                 gen_in.validate()
@@ -249,8 +254,10 @@ class Orchestrator:
                 self._log(f"[GENERATOR] Ошибка: {e}", "red")
                 break
 
+            # Валидатор получает составной summary чтобы LLM-review
+            # не отклонял правильно изменённый код по старому заданию
             val_in = ValidatorInput(code=state.generated_code,
-                                    task_summary=state.task_summary)
+                                    task_summary=refinement_summary)
             val_in.validate()
             val_result = self.validator.validate(
                 code=val_in.code, task_summary=val_in.task_summary,

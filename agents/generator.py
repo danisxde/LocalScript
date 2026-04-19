@@ -24,15 +24,27 @@ Return ONLY a ```lua ... ``` block. Nothing else."""
 
 SYSTEM_PROMPT_REFINE = """You are a Lua 5.5 code modifier for a LowCode workflow platform.
 
-You will receive existing Lua code and a user request to modify it.
-Apply ONLY the requested changes. Keep everything else intact.
+You will receive existing Lua code and a modification request.
+Your job: apply EXACTLY what the user asked. Read the request carefully — if it says
+"range 1 to 20 step 2", the output must call range(1, 20, 2). If it says "use field orders",
+replace the field name. Do not ignore numeric values or field names in the request.
 
-PLATFORM RULES (same as always):
+MODIFICATION RULES:
+- Apply the EXACT change requested (numbers, field names, conditions — literally)
+- Keep all unrelated logic intact
+- If the request contradicts the original task, the request wins
+
+PLATFORM RULES:
 1. wf.vars.<field> and wf.initVariables.<field> only
 2. _utils.array.new() for new arrays
 3. Must end with: return <value>
 4. Forbidden: io, os, require, coroutine, pcall, xpcall
-5. No -- comments
+5. No -- comments (they break JSON wrapping)
+
+EXAMPLE:
+User request: "change range to 1..20 step 2"
+Before: return range(1, 10)
+After:  return range(1, 20, 2)   ← use EXACTLY the numbers from the request
 
 Return ONLY the modified ```lua ... ``` block. No explanation."""
 
@@ -78,8 +90,13 @@ class GeneratorAgent(BaseAgent):
         is_refinement = bool(refinement_request) and bool(prior_code)
         is_repair = bool(previous_error) and iteration > 1
 
-        if is_refinement and not is_repair:
-            return self._refine(task_summary, prior_code, refinement_request, iteration)
+        # Важно: refinement имеет приоритет над repair.
+        # Если пользователь просит изменение (refinement) и первая попытка
+        # не прошла валидацию, мы должны продолжать как refinement+repair,
+        # а не переключаться в чистый repair без учёта уточнения.
+        if is_refinement:
+            return self._refine(task_summary, prior_code, refinement_request, iteration,
+                                previous_error=previous_error if is_repair else None)
         elif is_repair:
             return self._repair(task_summary, prior_code, previous_error, iteration)
         else:
@@ -108,7 +125,8 @@ class GeneratorAgent(BaseAgent):
         return GeneratorResult(code=code, raw_response=raw, iteration=iteration)
 
     def _refine(self, task_summary: str, prior_code: str,
-                refinement_request: str, iteration: int) -> GeneratorResult:
+                refinement_request: str, iteration: int,
+                previous_error: str = None) -> GeneratorResult:
         self._log(f"[GENERATOR] Уточняю код: \"{refinement_request[:50]}\"...", "cyan")
 
         prompt = (
@@ -116,6 +134,11 @@ class GeneratorAgent(BaseAgent):
             f"Current code:\n```lua\n{prior_code}\n```\n"
             f"User request: {refinement_request}"
         )
+        # Если есть ошибка из предыдущей попытки — добавляем её явно,
+        # чтобы LLM применил уточнение И исправил ошибку одновременно
+        if previous_error:
+            prompt += f"\nPrevious attempt failed with: {previous_error[:300]}\nFix the error AND apply the user request."
+
         raw = self.llm.chat(
             system=SYSTEM_PROMPT_REFINE,
             messages=[{"role": "user", "content": prompt}],
